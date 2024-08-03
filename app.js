@@ -1,88 +1,102 @@
-const express = require('express'),
-    bodyParser = require('body-parser'),
-    // In order to use PUT HTTP verb to edit item
-    methodOverride = require('method-override'),
-    // Mitigate XSS using sanitizer
-    sanitizer = require('sanitizer'),
-    app = express(),
-    port = 8000
+// Import required modules
+const express = require('express');
+const bodyParser = require('body-parser');
+const methodOverride = require('method-override');
+const sanitizer = require('sanitizer');
 
-app.use(bodyParser.urlencoded({
-    extended: false
+// Create an Express app instance
+const app = express();
+
+// Set port number
+const port = 8000;
+
+// Configure middleware
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(methodOverride((req, res) => {
+  if (req.body && typeof req.body === 'object' && '_method' in req.body) {
+    const method = req.body._method;
+    delete req.body._method;
+    return method;
+  }
 }));
-// https: //github.com/expressjs/method-override#custom-logic
-app.use(methodOverride(function (req, res) {
-    if (req.body && typeof req.body === 'object' && '_method' in req.body) {
-        // look in urlencoded POST bodies and delete it
-        let method = req.body._method;
-        delete req.body._method;
-        return method
-    }
-}));
 
-
+// Initialize todo list
 let todolist = [];
 
-/* The to do list and the form are displayed */
-app.get('/todo', function (req, res) {
-        res.render('todo.ejs', {
-            todolist,
-            clickHandler: "func1();"
-        });
-    })
+// Route handlers
 
-    /* Adding an item to the to do list */
-    .post('/todo/add/', function (req, res) {
-        // Escapes HTML special characters in attribute values as HTML entities
-        let newTodo = sanitizer.escape(req.body.newtodo);
-        if (req.body.newtodo != '') {
-            todolist.push(newTodo);
-        }
-        res.redirect('/todo');
-    })
+/**
+ * Display todo list and form
+ */
+app.get('/todo', (req, res) => {
+  res.render('todo.ejs', {
+    todolist,
+    clickHandler: "func1();"
+  });
+});
 
-    /* Deletes an item from the to do list */
-    .get('/todo/delete/:id', function (req, res) {
-        if (req.params.id != '') {
-            todolist.splice(req.params.id, 1);
-        }
-        res.redirect('/todo');
-    })
+/**
+ * Add item to todo list
+ */
+app.post('/todo/add/', (req, res) => {
+  const newTodo = sanitizer.escape(req.body.newtodo);
+  if (newTodo !== '') {
+    todolist.push(newTodo);
+  }
+  res.redirect('/todo');
+});
 
-    // Get a single todo item and render edit page
-    .get('/todo/:id', function (req, res) {
-        let todoIdx = req.params.id;
-        let todo = todolist[todoIdx];
+/**
+ * Delete item from todo list
+ */
+app.get('/todo/delete/:id', (req, res) => {
+  if (req.params.id !== '') {
+    todolist.splice(req.params.id, 1);
+  }
+  res.redirect('/todo');
+});
 
-        if (todo) {
-            res.render('edititem.ejs', {
-                todoIdx,
-                todo,
-                clickHandler: "func1();"
-            });
-        } else {
-            res.redirect('/todo');
-        }
-    })
+/**
+ * Get single todo item and render edit page
+ */
+app.get('/todo/:id', (req, res) => {
+  const todoIdx = req.params.id;
+  const todo = todolist[todoIdx];
 
-    // Edit item in the todo list 
-    .put('/todo/edit/:id', function (req, res) {
-        let todoIdx = req.params.id;
-        // Escapes HTML special characters in attribute values as HTML entities
-        let editTodo = sanitizer.escape(req.body.editTodo);
-        if (todoIdx != '' && editTodo != '') {
-            todolist[todoIdx] = editTodo;
-        }
-        res.redirect('/todo');
-    })
-    /* Redirects to the to do list if the page requested is not found */
-    .use(function (req, res, next) {
-        res.redirect('/todo');
-    })
-
-    .listen(port, function () {
-        // Logging to console
-        console.log(`Todolist running on http://0.0.0.0:${port}`)
+  if (todo) {
+    res.render('edititem.ejs', {
+      todoIdx,
+      todo,
+      clickHandler: "func1();"
     });
+  } else {
+    res.redirect('/todo');
+  }
+});
+
+/**
+ * Edit item in todo list
+ */
+app.put('/todo/edit/:id', (req, res) => {
+  const todoIdx = req.params.id;
+  const editTodo = sanitizer.escape(req.body.editTodo);
+  if (todoIdx !== '' && editTodo !== '') {
+    todolist[todoIdx] = editTodo;
+  }
+  res.redirect('/todo');
+});
+
+/**
+ * Redirect to todo list if page not found
+ */
+app.use((req, res, next) => {
+  res.redirect('/todo');
+});
+
+// Start server
+app.listen(port, () => {
+  console.log(`Todolist running on http://0.0.0.0:${port}`);
+});
+
 // Export app
 module.exports = app;
